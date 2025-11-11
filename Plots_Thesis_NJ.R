@@ -10,9 +10,17 @@ library(ggplot2)
 library(patchwork)
 library(survival)
 library(survminer)
+library(ggeffects)
 
 
 # TABLES
+
+#Descriptives SEX 
+summary(as.factor(baseline$Sex.Born))
+
+#Occupation
+summary(as.factor(baseline$Worklife.Situation))
+
 # Table for Descriptives 
 
 # Select relevant variables
@@ -168,5 +176,17 @@ ggplot(long_touch, aes(x = NrTouch, y = Total_DayKindness, color = PartnerType))
   facet_wrap(~PartnerType) +
   theme_minimal()
 
+#------------------------------------------------------------------------------
 
+#PREDICTION PLOT
 
+##non linear interaction effect () 
+m_quad <- lmer(ProS_Eve ~ NrTouch_z * poly(Interaction_Time_z, 2, raw = TRUE) + (1 | ID),
+              data = day_merged)
+
+summary(m_quad)
+#interact on X
+plot(ggpredict(m_quad, terms = c("Interaction_Time_z [all]", "NrTouch_z [-1, 0, 1]")))
+
+#Touch on X
+plot(ggpredict(m_quad, terms = c("NrTouch_z [all]", "Interaction_Time_z [-1, 0, 1]")))

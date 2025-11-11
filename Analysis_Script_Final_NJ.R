@@ -37,6 +37,11 @@ icc(m0)
 
 
 #H1 Number of Touches and Kindness Evening (controlled for Interaction Time)
+day_merged$Interaction_Time_z <- scale(day_merged$Interaction_Time, center = TRUE, scale = TRUE)
+day_merged$NrTouch_z <- scale(day_merged$NrTouch, center = TRUE, scale = TRUE)
+
+summary(day_merged[c("NrTouch_z", "Interaction_Time_z")])
+
 
 #H1a
 m1a <- mixed(ProS_Eve ~ NrTouch * Interaction_Time + (1 | ID ), method = "S", data = day_merged)
@@ -44,6 +49,13 @@ summary(m1a)
 
 #get standazised coefs (ß)
 standardize_parameters(m1a)
+
+#H1a with scaled predictors
+m1a_z <- mixed(ProS_Eve ~ NrTouch_z * Interaction_Time_z + (1 | ID ), method = "S", data = day_merged)
+summary(m1a_z)
+
+#get standazised coefs (ß)
+standardize_parameters(m1a_z)
 
 #H1b
 m1b <- mixed(Total_DayKindness ~ NrTouch * Interaction_Time + (1 | ID ), method = "S", data = day_merged)
@@ -53,13 +65,20 @@ summary(m1b)
 #get standazised coefs (ß)
 standardize_parameters(m1b)
 
+#h1b with scaled predictors
+m1b_z <- mixed(Total_DayKindness ~ NrTouch_z * Interaction_Time_z + (1 | ID ), method = "S", data = day_merged)
+
+summary(m1b_z)
+
+standardize_parameters(m1b_z)
+
 #H1c
 # think about transformation or non-parametric
 
 day_merged$BehaviorOccurred <- as.numeric(day_merged$KindnessBehavior.Time > 0)
-# Hurdle part 1: zero vs non-zero (logistic)
+# Hurdle part 1: zero vs non-zero (logistic) (standatized predictors)
 m1c_hurdle_binary <- glmmTMB(
-  BehaviorOccurred ~ NrTouch * Interaction_Time + (1 | ID),
+  BehaviorOccurred ~ NrTouch_z * Interaction_Time_z + (1 | ID),
   family = binomial(link = "logit"),
   data = day_merged
 )
@@ -79,7 +98,7 @@ day_positive <- subset(day_merged, KindnessBehavior.Time > 0)
 
 # Hurdle part 2: duration given >0
 m1c_hurdle_positive <- glmmTMB(
-  KindnessBehavior.Time ~ NrTouch * Interaction_Time + (1 | ID),
+  KindnessBehavior.Time ~ NrTouch_z * Interaction_Time_z + (1 | ID),
   family = Gamma(link = "log"),
   data = day_positive
 )
@@ -110,11 +129,13 @@ long_touch$PartnerType <- factor(
 #summary(m2a_dummy)
 #standardize_parameters(m2a_dummy)
 
+long_touch$InteractionTime_z <- scale(long_touch$InteractionTime, center = TRUE, scale = TRUE)
+long_touch$NrTouch_z <- scale(long_touch$NrTouch, center = TRUE, scale = TRUE)
 
 
 #Prefer lmer over mixed as category names stay coherent and more functions work with lmer objects
-#m2a <- mixed(ProS_Eve ~ NrTouch * PartnerType * InteractionTime + (1 | ID), method = "S", data = long_touch)
-m2a <- lmer(ProS_Eve ~ NrTouch * PartnerType * InteractionTime + (1 | ID), data = long_touch)
+#m2a <- mixed(ProS_Eve ~ NrTouch_z * PartnerType * InteractionTime_z + (1 | ID), method = "S", data = long_touch)
+m2a <- lmer(ProS_Eve ~ NrTouch_z * PartnerType * InteractionTime_z + (1 | ID), data = long_touch)
 
 summary(m2a)
 
@@ -127,7 +148,7 @@ standardize_parameters(m2a)
 
 #H2b
 #m2b <- mixed(Total_DayKindness ~ NrTouch * PartnerType * InteractionTime + (1 | ID), method = "S", data = long_touch)
-m2b <- lmer(Total_DayKindness ~ NrTouch * PartnerType * InteractionTime + (1 | ID), data = long_touch)
+m2b <- lmer(Total_DayKindness ~ NrTouch_z * PartnerType * InteractionTime_z + (1 | ID), data = long_touch)
 summary(m2b)
 
 standardize_parameters(m2b)
@@ -147,7 +168,7 @@ standardize_parameters(m2b)
 long_touch$BehaviorOccurred <- as.numeric(long_touch$KindnessBehavior.Time > 0)
 # Hurdle part 1: zero vs non-zero (logistic)
 m2c_hurdle_binary <- glmmTMB(
-  BehaviorOccurred ~ NrTouch * PartnerType * InteractionTime + (1 | ID),
+  BehaviorOccurred ~ NrTouch_z * PartnerType * InteractionTime_z + (1 | ID),
   family = binomial(link = "logit"),
   data = long_touch
 )
@@ -167,7 +188,7 @@ day_positive2 <- subset(long_touch, KindnessBehavior.Time > 0)
 
 # Hurdle part 2: duration given >0
 m2c_hurdle_positive <- glmmTMB(
-  KindnessBehavior.Time ~ NrTouch * PartnerType * InteractionTime + (1 | ID),
+  KindnessBehavior.Time ~ NrTouch_z * PartnerType * InteractionTime_z + (1 | ID),
   family = Gamma(link = "log"),
   data = day_positive2
 )
@@ -176,9 +197,30 @@ summary(m2c_hurdle_positive)
 standardize_parameters(m2c_hurdle_positive)
 
 
+## Exploratory Analysis
+##non linear interaction effect for H1a
+#------------------------------------
 
-## to-do:
-# Richtige Formatierung (Block, Indent)
-# OSF / Git
-#Appendix for H2 (all efects auch non sign. )
+# Baseline: linear interaction
+m_lin <- lmer(
+  ProS_Eve ~ NrTouch_z * Interaction_Time_z + (1 | ID),
+  data = day_merged,
+  REML = FALSE
+)
+
+# Quadratic moderation: linear + quadratic terms and their interactions with touch
+m_quad <- lmer(
+  ProS_Eve ~ NrTouch_z * poly(Interaction_Time_z, 2, raw = TRUE) + (1 | ID),
+  data = day_merged,
+  REML = FALSE
+)
+
+# Likelihood-ratio test
+anova(m_lin, m_quad)
+
+
+
+#bedenke, alles gescaled nun!
+#Appendix descriptives komplett (Sex, Occupation)
+# Push changes
 

@@ -20,8 +20,50 @@ df <- read.csv("2025-07-14_EMATouch_EMAData_AllSites.csv")
 baseline <- read.csv("2025-08-21_EMATouch_BaselineData_AllSites.csv")
 
 
+### Start preprocess and exclusion process
+
+## remove participant with less than 0.8 response rate
+# keep IDs with ResponseRate > 0.8
+ids <- unique(df$ID[df$ResponseRate > 0.8 & !is.na(df$ResponseRate)])
+
+# filter rows to those IDs
+df <- df[df$ID %in% ids, , drop = FALSE]
+
+baseline <- baseline[baseline$ID %in% ids, ]
+
+#careless responder
+df$TimeStart <- as.POSIXct(df$TimeStart, format = "%H:%M:%S")
+df$TimeSubmit <- as.POSIXct(df$TimeSubmit, format = "%H:%M:%S")
+
+df$completion_time <- as.numeric(difftime(df$TimeSubmit, df$TimeStart, units = "secs"))
+
+
+## remove slow or fast trials
+
+#way to include longer trials than exclusion criteria, when time spent helping task
+df$ratio <- df$KindnessBehavior.Time / df$completion_time
+
+
+
+#If someone helped for 38 min they cannot be exluded 
+idx_excl <- with(df, completion_time < 15 | completion_time > 900 & ratio < 0.05)
+to_exclude <- df[idx_excl, ]
+df <- df[!idx_excl, ]
+
+#remove completly empty rows
+df <- df[rowSums(is.na(df)) != ncol(df), ]
+
+#sanity check
+stopifnot(sum(df$ResponseRate < 0.8, na.rm = TRUE) == 0)
+
+stopifnot(sum(rowSums(is.na(df)) == ncol(df)) == 0)
+
+stopifnot(length(unique(df$ID)) == length(baseline$ID))
+
+stopifnot(all(baseline$ID %in% unique(df$ID)))
+
 #Overview over Data
-#summary(df)
+summary(df)
 
 
 #create Current Well Being Variable
@@ -105,6 +147,8 @@ day_merged$BehaviorOccurred <- as.numeric(day_merged$KindnessBehavior.Time > 0)
 
 ## centering interaction time to make main effect for touch at average of interaction time
 day_merged$Interaction_Time <- scale(day_merged$Interaction_Time, center = TRUE, scale = FALSE)
+
+
 
 
 day_merged$InteractT_Close <- scale(day_merged$InteractT_Close, center = TRUE, scale = FALSE)
