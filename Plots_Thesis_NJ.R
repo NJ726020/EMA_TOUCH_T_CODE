@@ -11,6 +11,10 @@ library(patchwork)
 library(survival)
 library(survminer)
 library(ggeffects)
+library(lmerTest)
+library(dplyr)
+library(tidyr)
+library(knitr)
 
 
 # TABLES
@@ -59,6 +63,7 @@ touch_percent_df <- data.frame(
   `0` = c(percent_close["0"], percent_well["0"], percent_dist["0"], percent_unknown["0"]),
   `1` = c(percent_close["1"], percent_well["1"], percent_dist["1"], percent_unknown["1"]),
   `2-5` = c(percent_close["2-5"], percent_well["2-5"], percent_dist["2-5"], percent_unknown["2-5"]),
+  `6-10` = c(percent_close["6-10"], percent_well["6-10"], percent_dist["6-10"], percent_unknown["6-10"]),
   `11-20` = c(percent_close["11-20"], percent_well["11-20"], percent_dist["11-20"], percent_unknown["11-20"]),
   `>20` = c(percent_close[">20"], percent_well[">20"], percent_dist[">20"], percent_unknown[">20"])
 )
@@ -155,10 +160,17 @@ ggsurvplot(fit,
 
 # Raw Data Touch & ProS Interaction for Partner Types
 ggplot(long_touch, aes(x = NrTouch, y = ProS_Eve, color = PartnerType)) +
-  geom_point(alpha = 0.3) +
+  geom_point(alpha = 0.2) +
   geom_smooth(method = "lm", se = FALSE) +
-  facet_wrap(~PartnerType) +
-  theme_minimal()
+  facet_wrap(~PartnerType, labeller = as_labeller(c(
+    NrT_Close   = "Closely trusted",
+    NrT_Well    = "Well-acquainted",
+    NrT_Dist    = "Distantly acquainted",
+    NrT_Unknown = "Unknown"
+  ))) +
+  theme_bw()+
+  theme(legend.position="none") +
+  labs(title = "Daily touches and prosociality states across partner types", x = "Daily touch categories", y = "Prosocial state" )
 
 #-------------------------------------------------------------------------------
 
@@ -178,6 +190,43 @@ ggplot(long_touch, aes(x = NrTouch, y = Total_DayKindness, color = PartnerType))
 
 #------------------------------------------------------------------------------
 
+## Model estimated effects (partner type)
+
+# marginal slopes of Touch across Partner Types (InteractionTime set to mean)
+eff_touch <- ggpredict(m2a, terms = c("NrTouch_z", "PartnerType")) ## replace touch with interaction time for other plot
+
+names(eff_touch)[names(eff_touch) == "group"] <- "PartnerType"
+
+ggplot(eff_touch, aes(x = x, y = predicted, colour = PartnerType)) +
+  geom_line(size = 1) +
+  geom_ribbon(aes(ymin = conf.low, ymax = conf.high, fill = PartnerType), alpha = 0.15, colour = NA) +
+  facet_wrap(~PartnerType, labeller = as_labeller(c(
+    NrT_Close   = "Closely trusted",
+    NrT_Well    = "Well-acquainted",
+    NrT_Dist    = "Distantly acquainted",
+    NrT_Unknown = "Unknown"
+  ))) +
+  scale_x_continuous(limits = c(-1, 4)) +   # <–– sets x-axis from -1 to 5
+  labs(x = "Touch (z)", y = "Predicted Prosociality",
+       title = "Model-estimated effect of touch by partner type with standard error") +
+  theme_bw()+
+  theme(legend.position="none") 
+
+
+
+ggplot(long_touch, aes(x = NrTouch, y = ProS_Eve, color = PartnerType)) +
+  geom_point(alpha = 0.2) +
+  geom_smooth(method = "lm", se = TRUE) +
+  facet_wrap(~PartnerType, labeller = as_labeller(c(
+    NrT_Close   = "Closely trusted",
+    NrT_Well    = "Well-acquainted",
+    NrT_Dist    = "Distantly acquainted",
+    NrT_Unknown = "Unknown"
+  ))) +
+  theme_bw()+
+  theme(legend.position="none") +
+  labs(title = "Daily touches and prosociality states across partner types", x = "Daily touch categories", y = "Prosocial state" )
+
 #PREDICTION PLOT
 
 ##non linear interaction effect () 
@@ -190,3 +239,115 @@ plot(ggpredict(m_quad, terms = c("Interaction_Time_z [all]", "NrTouch_z [-1, 0, 
 
 #Touch on X
 plot(ggpredict(m_quad, terms = c("NrTouch_z [all]", "Interaction_Time_z [-1, 0, 1]")))
+
+
+
+### FULL DESCRIPTIVES TABLE
+
+
+# -----------------------------
+# 1) Define inclusion criteria
+# -----------------------------
+baseline_included <- baseline %>%
+  filter(!is.na(Age), !is.na(Sex.Gender))
+
+# Sample sizes (for reporting in text)
+N_total    <- nrow(baseline)
+N_included <- nrow(baseline_included)
+N_excluded <- N_total - N_included
+
+# -----------------------------
+# 2) Continuous variable: Age
+# -----------------------------
+age_desc <- baseline_included %>%
+  summarise(
+    Variable  = "Age (years)",
+    Category  = "—",
+    Statistic = paste0(
+      "M = ", round(mean(Age, na.rm = TRUE), 2),
+      ", SD = ", round(sd(Age, na.rm = TRUE), 2),
+      ", Range = ", min(Age, na.rm = TRUE), "–", max(Age, na.rm = TRUE)
+    )
+  )
+
+# ----------------------------------
+# 3) Helper for categorical variables
+# ----------------------------------
+cat_desc <- function(data, var, label) {
+  data %>%
+    filter(!is.na(.data[[var]])) %>%
+    count(.data[[var]]) %>%
+    mutate(
+      Variable  = label,
+      Category  = as.character(.data[[var]]),
+      Statistic = paste0(
+        "n = ", n, " (",
+        round(100 * n / sum(n), 1), "%)"
+      )
+    ) %>%
+    select(Variable, Category, Statistic)
+}
+
+# -----------------------------
+# 4) Categorical descriptives
+# -----------------------------
+gender_desc <- cat_desc(
+  baseline_included,
+  "Sex.Gender",
+  "Gender"
+)
+
+occupation_desc <- cat_desc(
+  baseline_included,
+  "Worklife.Situation",
+  "Occupation / Work status"
+)
+
+education_desc <- cat_desc(
+  baseline_included,
+  "Highest.Education",
+  "Education level"
+)
+
+relationship_desc <- cat_desc(
+  baseline_included,
+  "Household.RelationshipStatus",
+  "Relationship status"
+)
+
+# -----------------------------
+# 5) Combine into one APA table
+# -----------------------------
+desc_table <- bind_rows(
+  age_desc,
+  gender_desc,
+  occupation_desc,
+  education_desc,
+  relationship_desc
+)
+
+# -----------------------------
+# 6) Print appendix table
+# -----------------------------
+kable(
+  desc_table,
+  caption = "Appendix A1. Baseline demographic characteristics of the sample."
+)
+
+
+## Plot conditional effect (marginal) for m_quad
+
+
+ggplot(slopes_quad,
+       aes(x = Interaction_Time_z,
+           y = estimate)) +
+  geom_line(size = 1.2) +
+  geom_ribbon(aes(ymin = conf.low, ymax = conf.high),
+              alpha = 0.2) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  labs(
+    x = "Interaction Time (z)",
+    y = "Conditional effect of Touch Frequency on Prosociality"
+  ) +
+  theme_bw()
+

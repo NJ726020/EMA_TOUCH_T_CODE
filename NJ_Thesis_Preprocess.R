@@ -37,6 +37,8 @@ df$TimeSubmit <- as.POSIXct(df$TimeSubmit, format = "%H:%M:%S")
 
 df$completion_time <- as.numeric(difftime(df$TimeSubmit, df$TimeStart, units = "secs"))
 
+#more help than 10 min (3 trials affected)
+#df <- df[df$KindnessBehavior.Time < 600, ]
 
 ## remove slow or fast trials
 
@@ -45,7 +47,7 @@ df$ratio <- df$KindnessBehavior.Time / df$completion_time
 
 
 
-#If someone helped for 38 min they cannot be exluded 
+#long help times should not be excluded
 idx_excl <- with(df, completion_time < 15 | completion_time > 900 & ratio < 0.05)
 to_exclude <- df[idx_excl, ]
 df <- df[!idx_excl, ]
@@ -97,11 +99,11 @@ df$Date <- as.Date(df$Date)
 
 
 # create new variables for touch with friends
-df$Touch_Close <- factor(df$NrTouch.CloselyTrusted, levels = c("0", "1", "2-5", "11-20", ">20"), ordered = TRUE)
-df$Touch_WellAcquainted <- factor(df$NrTouch.WellAcquainted, levels = c("0", "1", "2-5", "11-20", ">20"), ordered = TRUE)
-df$Touch_DistantlyAcquainted <- factor(df$NrTouch.DistantlyAcquainted, levels = c("0", "1", "2-5", "11-20", ">20"), ordered = TRUE)
-df$Touch_Unknown <-  factor(df$NrTouch.Unknown, levels = c("0", "1", "2-5", "11-20", ">20"), ordered = TRUE)
-df$Touch_Pet <-  factor(df$NrTouch.Pet, levels = c("0", "1", "2-5", "11-20", ">20"), ordered = TRUE)
+df$Touch_Close <- factor(df$NrTouch.CloselyTrusted, levels = c("0", "1", "2-5", "6-10", "11-20", ">20"), ordered = TRUE)
+df$Touch_WellAcquainted <- factor(df$NrTouch.WellAcquainted, levels = c("0", "1", "2-5", "6-10", "11-20", ">20"), ordered = TRUE)
+df$Touch_DistantlyAcquainted <- factor(df$NrTouch.DistantlyAcquainted, levels = c("0", "1", "2-5", "6-10", "11-20", ">20"), ordered = TRUE)
+df$Touch_Unknown <-  factor(df$NrTouch.Unknown, levels = c("0", "1", "2-5", "6-10", "11-20", ">20"), ordered = TRUE)
+df$Touch_Pet <-  factor(df$NrTouch.Pet, levels = c("0", "1", "2-5", "6-10", "11-20", ">20"), ordered = TRUE)
 
 #For H1
 #new data frame with touch, interaction-time and ProS aggregated over the day 
@@ -114,10 +116,10 @@ agg_day <- df %>%
     NrT_Dist = mean(as.numeric(Touch_DistantlyAcquainted) - 1, na.rm = TRUE),
     NrT_Unknown = mean(as.numeric(Touch_Unknown) - 1, na.rm = TRUE),
     
-    NrT_Close_Sum = sum(as.numeric(Touch_Close) / 5 , na.rm = TRUE),
-    NrT_Well_Sum = sum(as.numeric(Touch_WellAcquainted) / 5 , na.rm = TRUE),
-    NrT_Dist_Sum = sum(as.numeric(Touch_DistantlyAcquainted) / 5 , na.rm = TRUE),
-    NrT_Unknown_Sum = sum(as.numeric(Touch_Unknown) / 5 , na.rm = TRUE),
+    NrT_Close_Sum = sum(as.numeric(Touch_Close) / 6 , na.rm = TRUE),
+    NrT_Well_Sum = sum(as.numeric(Touch_WellAcquainted) / 6 , na.rm = TRUE),
+    NrT_Dist_Sum = sum(as.numeric(Touch_DistantlyAcquainted) / 6 , na.rm = TRUE),
+    NrT_Unknown_Sum = sum(as.numeric(Touch_Unknown) / 6 , na.rm = TRUE),
     
     
     InteractT_Close = mean(InteractionTime.CloselyTrusted, na.rm = TRUE),

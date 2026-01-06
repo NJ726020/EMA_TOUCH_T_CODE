@@ -4,6 +4,7 @@
 ### Intent: Final analysis 
 
 library(lme4)
+library(simr)
 library(lmerTest)
 library(performance)
 library(afex)
@@ -12,6 +13,9 @@ library(ggplot2)
 library(lattice)
 library(glmmTMB)
 library(effectsize)
+library(interactions)
+library(marginaleffects)
+
 
 
 # Data loaded in NJ_Thesis_Preprocess.R
@@ -44,11 +48,11 @@ summary(day_merged[c("NrTouch_z", "Interaction_Time_z")])
 
 
 #H1a
-m1a <- mixed(ProS_Eve ~ NrTouch * Interaction_Time + (1 | ID ), method = "S", data = day_merged)
-summary(m1a)
+#m1a <- mixed(ProS_Eve ~ NrTouch * Interaction_Time + (1 | ID ), method = "S", data = day_merged)
+#summary(m1a)
 
 #get standazised coefs (ß)
-standardize_parameters(m1a)
+#standardize_parameters(m1a)
 
 #H1a with scaled predictors
 m1a_z <- mixed(ProS_Eve ~ NrTouch_z * Interaction_Time_z + (1 | ID ), method = "S", data = day_merged)
@@ -58,12 +62,12 @@ summary(m1a_z)
 standardize_parameters(m1a_z)
 
 #H1b
-m1b <- mixed(Total_DayKindness ~ NrTouch * Interaction_Time + (1 | ID ), method = "S", data = day_merged)
+#m1b <- mixed(Total_DayKindness ~ NrTouch * Interaction_Time + (1 | ID ), method = "S", data = day_merged)
 
-summary(m1b)
+#summary(m1b)
 
 #get standazised coefs (ß)
-standardize_parameters(m1b)
+#standardize_parameters(m1b)
 
 #h1b with scaled predictors
 m1b_z <- mixed(Total_DayKindness ~ NrTouch_z * Interaction_Time_z + (1 | ID ), method = "S", data = day_merged)
@@ -198,6 +202,20 @@ standardize_parameters(m2c_hurdle_positive)
 
 
 ## Exploratory Analysis
+
+## Negative Interaction when predicting proS (Touch & Interaction time)
+
+jn <- johnson_neyman(
+  model = m_lin,
+  pred  = NrTouch_z,
+  modx  = Interaction_Time_z,
+  alpha = 0.05,
+  control.fdr = FALSE,
+  title = ""
+  
+)
+
+jn
 ##non linear interaction effect for H1a
 #------------------------------------
 
@@ -219,8 +237,12 @@ m_quad <- lmer(
 anova(m_lin, m_quad)
 
 
+#conditional marginal effects
+slopes_quad <- slopes(
+  m_quad,
+  variables = "NrTouch_z",
+  by = "Interaction_Time_z",
+  re.form = NA
+)
 
-#bedenke, alles gescaled nun!
-#Appendix descriptives komplett (Sex, Occupation)
-# Push changes
 
